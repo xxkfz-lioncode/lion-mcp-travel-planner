@@ -155,11 +155,21 @@ mvn spring-boot:run
 | `generateTravelPlan(requirements)` | 一句话生成旅行计划 |
 | `listCities()` | 列出内置城市 |
 
-另一工程（MCP Client）通过 SSE 端点连接：
+### 对接 MCP Client（lion-agent）
+
+配套的 AI Agent 工程 **[lion-agent](https://github.com/xxkfz-lioncode/lion-agent.git)**（MCP Client）通过 SSE 端点连接本 Server，即可在 Agent 对话中直接调用上述旅游规划工具。
+
+```bash
+git clone https://github.com/xxkfz-lioncode/lion-agent.git
+```
+
+MCP Client 通过 SSE 端点连接：
 
 ```bash
 npx @modelcontextprotocol/inspector --transport http --url http://localhost:8083/sse
 ```
+
+> 注意：本 Server 需先启动（`mvn spring-boot:run`），Client 侧配置的 MCP Server 地址为 `http://localhost:8083/sse`。
 
 ## 关键配置说明
 
