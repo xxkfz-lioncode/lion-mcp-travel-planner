@@ -1,0 +1,81 @@
+# =====================================================================
+# 旅游规划助手 MCP Server - 全局配置
+# 安全约定:所有密钥/口令一律通过环境变量注入,配置文件中不允许出现明文敏感信息。
+# 必配环境变量(未设置时应用无法启动):
+#   DASHSCOPE_API_KEY   通义千问 API Key
+#   MYSQL_USER          数据库用户名
+#   MYSQL_PASSWORD      数据库密码
+#   REDIS_PASSWORD      Redis 密码(本地无密码可留空)
+# 可选环境变量:
+#   MYSQL_HOST / MYSQL_PORT / MYSQL_DB / REDIS_HOST / REDIS_PORT / TRAVEL_AI_ENABLED
+# =====================================================================
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: lion-mcp-travel-planner
+
+  # ---------- 数据源:MySQL(凭据必须通过环境变量注入) ----------
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:travel_planner}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+
+  # ---------- Redis(Redisson 自动配置使用 spring.data.redis 前缀) ----------
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: 6
+      # 密码通过环境变量注入(本地无密码时留空,如 REDIS_PASSWORD=)
+      password: ${REDIS_PASSWORD}
+
+  # ---------- AI 能力:DashScope(通义千问) ----------
+  ai:
+    dashscope:
+      # API Key 必须通过环境变量注入,禁止写死在配置文件中
+      api-key: ${DASHSCOPE_API_KEY}
+      chat:
+        options:
+          # 模型选择:qwen-plus(均衡)/ qwen-max(更强)/ qwen-turbo(更快)/ qwen-flash(最快)
+          # 注意:必须是 DashScope 官方模型名,写错会报 "url error" (InvalidParameter)
+          model: ${DASHSCOPE_MODEL:qwen-plus}
+          temperature: 0.7
+    # ---------- MCP Server 配置(对外暴露给另一个工程调用) ----------
+    mcp:
+      server:
+        enabled: true
+        name: travel-planner
+        version: 1.0.0
+        # SSE 传输端点,另一个工程(MCP Client)通过该地址连接
+        sse-endpoint: /sse
+
+# ---------- MyBatis-Plus 配置 ----------
+mybatis-plus:
+  # Mapper XML 位置(无 XML 时可省略)
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    # 下划线转驼峰(数据库字段 -> 实体属性)
+    map-underscore-to-camel-case: true
+    # 开发阶段打印 SQL,生产环境建议关闭
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      # 主键策略:数据库自增
+      id-type: auto
+      # 逻辑删除字段(如需要可启用)
+      # logic-delete-field: deleted
+      # logic-delete-value: 1
+      # logic-not-delete-value: 0
+
+# ---------- 自定义业务配置 ----------
+travel:
+  # AI 生成开关:为 false 时 Graph 工作流走本地模板逻辑(无需 API Key 也能演示)
+  ai-enabled: ${TRAVEL_AI_ENABLED:true}
+  # 行程缓存过期时间(秒)
+  cache-ttl-seconds: 3600
+  # 默认行程天数
+  default-days: 3

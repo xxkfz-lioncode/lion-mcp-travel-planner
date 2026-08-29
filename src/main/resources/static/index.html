@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅游规划助手</title>
+    <!-- marked.js:浏览器端 Markdown 渲染 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #e8f4ff 0%, #fdf6ec 100%);
+            min-height: 100vh;
+            color: #2c3e50;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 32px 20px 60px; }
+        header { text-align: center; margin-bottom: 36px; }
+        header h1 { font-size: 32px; color: #1a6fb5; letter-spacing: 2px; }
+        header p { margin-top: 8px; color: #7f8c8d; font-size: 14px; }
+        .card {
+            background: #fff; border-radius: 16px; padding: 28px;
+            box-shadow: 0 8px 30px rgba(26, 111, 181, .08);
+            margin-bottom: 24px;
+        }
+        .card h2 { font-size: 18px; margin-bottom: 16px; color: #1a6fb5; }
+        textarea {
+            width: 100%; min-height: 80px; padding: 14px; border: 1px solid #dce8f3;
+            border-radius: 10px; font-size: 15px; resize: vertical; outline: none;
+            transition: border-color .2s;
+        }
+        textarea:focus { border-color: #1a6fb5; }
+        .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+        input[type="text"] {
+            flex: 1; min-width: 160px; padding: 10px 14px; border: 1px solid #dce8f3;
+            border-radius: 10px; font-size: 14px; outline: none;
+        }
+        input[type="text"]:focus { border-color: #1a6fb5; }
+        button {
+            padding: 10px 24px; border: none; border-radius: 10px; font-size: 15px;
+            cursor: pointer; color: #fff; background: #1a6fb5; transition: opacity .2s, transform .1s;
+        }
+        button:hover { opacity: .88; }
+        button:active { transform: scale(.97); }
+        button.secondary { background: #95a5a6; }
+        .loading { display: none; margin-top: 12px; color: #1a6fb5; font-size: 14px; }
+        .result-box {
+            margin-top: 16px; padding: 18px; background: #f8fbfe; border-radius: 10px;
+            border: 1px solid #e3eef8; line-height: 1.8; font-size: 14px;
+            max-height: 600px; overflow-y: auto;
+        }
+        .result-box h1, .result-box h2, .result-box h3 { margin: 12px 0 8px; color: #1a6fb5; }
+        .result-box ul, .result-box ol { padding-left: 22px; }
+        .result-box code { background: #eef3f8; padding: 2px 6px; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eef2f6; text-align: left; }
+        th { background: #f5f9fd; color: #34495e; font-weight: 600; }
+        tr:hover td { background: #f8fbfe; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px;
+            background: #e8f4ff; color: #1a6fb5; margin-right: 4px; }
+        .empty { text-align: center; color: #b0b8c4; padding: 24px 0; }
+        .footer { text-align: center; color: #b0b8c4; font-size: 12px; margin-top: 20px; }
+
+        /* ===== Graph 流程图 ===== */
+        .graph-title { font-size: 13px; color: #7f8c8d; margin-top: 14px; }
+        .graph-flow {
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            flex-wrap: wrap; margin-top: 10px; padding: 14px 10px;
+            background: #f4f9ff; border-radius: 12px; border: 1px solid #e3eef8;
+        }
+        .node {
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            padding: 8px 14px; min-width: 84px; border-radius: 10px;
+            border: 2px solid #dce8f3; background: #fff; transition: all .3s;
+        }
+        .node .node-title { font-size: 13px; font-weight: 600; color: #34495e; }
+        .node .node-status { font-size: 12px; color: #b0b8c4; }
+        .node.pending { opacity: .5; }
+        .node.running { border-color: #1a6fb5; background: #eaf4ff; box-shadow: 0 0 0 4px rgba(26,111,181,.12); }
+        .node.running .node-status { color: #1a6fb5; animation: graph-blink 1s infinite; }
+        .node.done { border-color: #27ae60; background: #eafaf1; }
+        .node.done .node-status { color: #27ae60; }
+        .arrow { color: #b0c4d8; font-weight: bold; font-size: 16px; }
+        @keyframes graph-blink { 50% { opacity: .35; } }
+        @media (max-width: 640px) { .arrow { display: none; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🧳 旅游规划助手</h1>
+        <p>输入一句话需求,AI 自动生成专属旅行计划 · 基于 Spring AI Alibaba Graph</p>
+    </header>
+
+    <!-- ============ 生成行程 ============ -->
+    <div class="card">
+        <h2>✍️ 一句话生成旅行计划</h2>
+        <textarea id="planReq" placeholder="例如:北京3天2晚亲子游,预算5000元,喜欢历史文化"></textarea>
+        <div class="row">
+            <button onclick="generatePlan()">生成计划</button>
+            <button class="secondary" onclick="useExample()">填入示例</button>
+        </div>
+        <div class="loading" id="planLoading">⏳ AI 正在规划行程,请稍候(约 10~30 秒)...</div>
+        <div class="graph-title" id="graphTitle" style="display:none;">📊 Graph 工作流执行进度:</div>
+        <div class="graph-flow" id="graphFlow" style="display:none;"></div>
+        <div class="result-box" id="planResult" style="display:none;"></div>
+    </div>
+
+    <!-- ============ 景点检索 ============ -->
+    <div class="card">
+        <h2>🔍 景点检索</h2>
+        <div class="row">
+            <input type="text" id="searchCity" placeholder="城市,如:北京">
+            <input type="text" id="searchKeyword" placeholder="关键词,如:亲子、夜景、免费">
+            <button onclick="searchAttractions()">搜索</button>
+        </div>
+        <div id="attractionList"></div>
+    </div>
+
+    <!-- ============ 历史行程 ============ -->
+    <div class="card">
+        <h2>📋 历史行程</h2>
+        <div class="row">
+            <input type="text" id="historyCity" placeholder="按城市筛选(可留空)">
+            <button onclick="loadHistory()">刷新</button>
+        </div>
+        <div id="historyList"></div>
+    </div>
+
+    <div class="footer">travel-planner · Spring Boot 3.5 + Spring AI Alibaba Graph + MyBatis-Plus + Redisson</div>
+</div>
+
+<script>
+    // 通用请求封装
+    async function request(url, options) {
+        const resp = await fetch(url, options);
+        return resp.json();
+    }
+
+    // 页面加载:自动加载城市与历史
+    window.onload = function () {
+        loadHistory();
+        loadCities();
+    };
+
+    // 加载城市列表(填充输入提示)
+    async function loadCities() {
+        try {
+            const data = await request('/api/cities');
+            if (data.code === 200 && data.data.length) {
+                document.getElementById('searchCity').placeholder = '城市,如:' + data.data.slice(0, 4).join('、');
+            }
+        } catch (e) { /* 忽略 */ }
+    }
+
+    // 填入示例需求
+    function useExample() {
+        document.getElementById('planReq').value = '北京3天2晚亲子游,预算5000元,喜欢历史文化,带5岁孩子';
+    }
+
+    // Graph 节点定义(与后端 TravelGraphNodes 节点一致)
+    const GRAPH_NODES = [
+        { node: 'requirement', label: '需求解析' },
+        { node: 'analysis', label: '偏好分析' },
+        { node: 'search', label: '景点检索' },
+        { node: 'plan', label: '行程生成' },
+        { node: 'format', label: '格式化' }
+    ];
+
+    // 渲染流程图:statusMap 为 node -> running/done/pending;allDone=true 时全部置为完成
+    function renderGraph(statusMap, allDone) {
+        const flow = document.getElementById('graphFlow');
+        const title = document.getElementById('graphTitle');
+        flow.style.display = 'flex';
+        title.style.display = 'block';
+        flow.innerHTML = GRAPH_NODES.map(function (n, i) {
+            const st = allDone ? 'done' : (statusMap[n.node] || 'pending');
+            const text = st === 'done' ? '✓ 完成' : (st === 'running' ? '执行中…' : '等待中');
+            return '<div class="node ' + st + '">' +
+                    '<div class="node-title">' + (i + 1) + '. ' + n.label + '</div>' +
+                    '<div class="node-status">' + text + '</div></div>' +
+                    (i < GRAPH_NODES.length - 1 ? '<div class="arrow">→</div>' : '');
+        }).join('');
+    }
+
+    // 轮询 Graph 执行进度
+    async function pollGraph(requestId) {
+        try {
+            const data = await request('/api/graph/progress?requestId=' + requestId);
+            const list = data.data || [];
+            const map = {};
+            list.forEach(function (s) {
+                map[s.node] = s.status === 'RUNNING' ? 'running'
+                        : (s.status === 'DONE' ? 'done' : 'pending');
+            });
+            renderGraph(map, false);
+        } catch (e) { /* 轮询失败忽略,等待下一次 */ }
+    }
+
+    // 生成旅行计划
+    async function generatePlan() {
+        const requirements = document.getElementById('planReq').value.trim();
+        if (!requirements) { alert('请输入旅行需求'); return; }
+        const box = document.getElementById('planResult');
+        const loading = document.getElementById('planLoading');
+        box.style.display = 'none';
+        loading.style.display = 'block';
+        // 生成 requestId,用于轮询 Graph 执行进度
+        const requestId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        renderGraph({}, false); // 初始:全部等待
+        const poll = setInterval(function () { pollGraph(requestId); }, 800);
+        try {
+            const data = await request('/api/itinerary/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requirements, requestId })
+            });
+            clearInterval(poll);
+            renderGraph({}, true); // 请求结束,节点全部完成
+            loading.style.display = 'none';
+            box.style.display = 'block';
+            if (data.code === 200) {
+                box.innerHTML = marked.parse(data.data);
+                loadHistory(); // 刷新历史
+            } else {
+                box.innerHTML = '<span style="color:#e74c3c">生成失败:' + data.message + '</span>';
+            }
+        } catch (e) {
+            clearInterval(poll);
+            renderGraph({}, true);
+            loading.style.display = 'none';
+            box.style.display = 'block';
+            box.innerHTML = '<span style="color:#e74c3c">请求异常,请确认服务已启动</span>';
+        }
+    }
+
+    // 景点检索
+    async function searchAttractions() {
+        const city = document.getElementById('searchCity').value.trim();
+        const keyword = document.getElementById('searchKeyword').value.trim();
+        const params = new URLSearchParams();
+        if (city) params.append('city', city);
+        if (keyword) params.append('keyword', keyword);
+        const box = document.getElementById('attractionList');
+        box.innerHTML = '<div class="loading" style="display:block">⏳ 查询中...</div>';
+        try {
+            const data = await request('/api/attractions?' + params.toString());
+            if (data.code !== 200) { box.innerHTML = '<div class="empty">查询失败:' + data.message + '</div>'; return; }
+            const list = data.data || [];
+            if (!list.length) { box.innerHTML = '<div class="empty">未找到相关景点</div>'; return; }
+            let html = '<table><thead><tr><th>景点</th><th>城市</th><th>类别</th><th>评分</th><th>人均</th><th>标签</th><th>简介</th></tr></thead><tbody>';
+            list.forEach(a => {
+                const tags = (a.tags || '').split(',').filter(Boolean).map(t => '<span class="tag">' + t + '</span>').join('');
+                html += '<tr><td><b>' + a.name + '</b></td><td>' + a.city + '</td><td>' + a.category + '</td>' +
+                        '<td>⭐' + a.rating + '</td><td>' + (a.price > 0 ? '¥' + a.price : '免费') + '</td>' +
+                        '<td>' + tags + '</td><td style="max-width:280px">' + (a.description || '') + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            box.innerHTML = html;
+        } catch (e) {
+            box.innerHTML = '<div class="empty">请求异常</div>';
+        }
+    }
+
+    // 加载历史行程
+    async function loadHistory() {
+        const city = document.getElementById('historyCity').value.trim();
+        const params = new URLSearchParams({ limit: '10' });
+        if (city) params.append('city', city);
+        const box = document.getElementById('historyList');
+        try {
+            const data = await request('/api/itinerary/history?' + params.toString());
+            if (data.code !== 200) { box.innerHTML = '<div class="empty">加载失败</div>'; return; }
+            const list = data.data || [];
+            if (!list.length) { box.innerHTML = '<div class="empty">暂无历史行程</div>'; return; }
+            let html = '<table><thead><tr><th>城市</th><th>天数</th><th>风格</th><th>预算</th><th>生成时间</th></tr></thead><tbody>';
+            list.forEach(it => {
+                html += '<tr><td><b>' + (it.city || '未识别') + '</b></td><td>' + (it.days || '-') + ' 天</td>' +
+                        '<td>' + (it.style || '-') + '</td><td>¥' + (it.budget || 0) + '</td>' +
+                        '<td>' + (it.createTime || '').replace('T', ' ') + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            box.innerHTML = html;
+        } catch (e) {
+            box.innerHTML = '<div class="empty">请求异常</div>';
+        }
+    }
+</script>
+</body>
+</html>
