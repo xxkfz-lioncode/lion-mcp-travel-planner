@@ -4,128 +4,377 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>旅游规划助手</title>
-    <!-- marked.js:浏览器端 Markdown 渲染 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
     <style>
+        :root {
+            --primary: #1a6fb5;
+            --primary-light: #eaf4ff;
+            --success: #27ae60;
+            --bg: linear-gradient(135deg, #e8f4ff 0%, #fdf6ec 100%);
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+            --muted: #7f8c8d;
+            --border: #dce8f3;
+            --shadow: 0 10px 40px rgba(26, 111, 181, .10);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
-            background: linear-gradient(135deg, #e8f4ff 0%, #fdf6ec 100%);
+            background: var(--bg);
             min-height: 100vh;
-            color: #2c3e50;
+            color: var(--text);
+            padding-bottom: 40px;
         }
-        .container { max-width: 960px; margin: 0 auto; padding: 32px 20px 60px; }
-        header { text-align: center; margin-bottom: 36px; }
-        header h1 { font-size: 32px; color: #1a6fb5; letter-spacing: 2px; }
-        header p { margin-top: 8px; color: #7f8c8d; font-size: 14px; }
+
+        /* ===== 顶部导航 ===== */
+        .top-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, .92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 2px 12px rgba(26, 111, 181, .06);
+        }
+        .nav-inner {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .brand {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+        .brand span { font-size: 22px; }
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .nav-tab {
+            padding: 8px 18px;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--muted);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all .25s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+        .nav-tab:hover {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+        .nav-tab.active {
+            background: var(--card-bg);
+            color: var(--primary);
+            border-color: var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        /* ===== 页面容器 ===== */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 28px 20px;
+        }
+        .page-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .page-header h1 {
+            font-size: 34px;
+            color: var(--primary);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .page-header p {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        /* ===== 卡片与面板 ===== */
         .card {
-            background: #fff; border-radius: 16px; padding: 28px;
-            box-shadow: 0 8px 30px rgba(26, 111, 181, .08);
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 28px;
+            box-shadow: var(--shadow);
             margin-bottom: 24px;
+            animation: fadeIn .35s ease-out;
         }
-        .card h2 { font-size: 18px; margin-bottom: 16px; color: #1a6fb5; }
-        textarea {
-            width: 100%; min-height: 80px; padding: 14px; border: 1px solid #dce8f3;
-            border-radius: 10px; font-size: 15px; resize: vertical; outline: none;
-            transition: border-color .2s;
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        textarea:focus { border-color: #1a6fb5; }
-        .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
-        input[type="text"] {
-            flex: 1; min-width: 160px; padding: 10px 14px; border: 1px solid #dce8f3;
-            border-radius: 10px; font-size: 14px; outline: none;
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
         }
-        input[type="text"]:focus { border-color: #1a6fb5; }
+        .card-header h2 {
+            font-size: 18px;
+            color: var(--primary);
+            font-weight: 700;
+        }
+        .card-header .icon {
+            width: 34px; height: 34px;
+            border-radius: 10px;
+            background: var(--primary-light);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        /* ===== 表单组件 ===== */
+        .form-hint {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color .2s, box-shadow .2s;
+            font-family: inherit;
+        }
+        textarea:focus, input[type="text"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(26, 111, 181, .10);
+        }
+        textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
+        .row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+            align-items: stretch;
+        }
+        .row input[type="text"] { flex: 1; min-width: 160px; }
+
         button {
-            padding: 10px 24px; border: none; border-radius: 10px; font-size: 15px;
-            cursor: pointer; color: #fff; background: #1a6fb5; transition: opacity .2s, transform .1s;
+            padding: 11px 26px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            cursor: pointer;
+            color: #fff;
+            background: var(--primary);
+            transition: opacity .2s, transform .1s, box-shadow .2s;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
-        button:hover { opacity: .88; }
+        button:hover { opacity: .9; box-shadow: 0 4px 14px rgba(26, 111, 181, .25); }
         button:active { transform: scale(.97); }
         button.secondary { background: #95a5a6; }
-        .loading { display: none; margin-top: 12px; color: #1a6fb5; font-size: 14px; }
-        .result-box {
-            margin-top: 16px; padding: 18px; background: #f8fbfe; border-radius: 10px;
-            border: 1px solid #e3eef8; line-height: 1.8; font-size: 14px;
-            max-height: 600px; overflow-y: auto;
+        button.secondary:hover { box-shadow: 0 4px 14px rgba(149, 165, 166, .25); }
+
+        /* ===== 结果与进度 ===== */
+        .loading {
+            display: none;
+            margin-top: 14px;
+            color: var(--primary);
+            font-size: 14px;
+            padding: 12px 16px;
+            background: var(--primary-light);
+            border-radius: 10px;
         }
-        .result-box h1, .result-box h2, .result-box h3 { margin: 12px 0 8px; color: #1a6fb5; }
-        .result-box ul, .result-box ol { padding-left: 22px; }
+        .result-box {
+            margin-top: 18px;
+            padding: 20px;
+            background: #f8fbfe;
+            border-radius: 12px;
+            border: 1px solid #e3eef8;
+            line-height: 1.85;
+            font-size: 14px;
+            max-height: 680px;
+            overflow-y: auto;
+        }
+        .result-box h1, .result-box h2, .result-box h3 { margin: 14px 0 10px; color: var(--primary); }
+        .result-box ul, .result-box ol { padding-left: 24px; }
         .result-box code { background: #eef3f8; padding: 2px 6px; border-radius: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
-        th, td { padding: 10px; border-bottom: 1px solid #eef2f6; text-align: left; }
-        th { background: #f5f9fd; color: #34495e; font-weight: 600; }
-        tr:hover td { background: #f8fbfe; }
-        .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px;
-            background: #e8f4ff; color: #1a6fb5; margin-right: 4px; }
-        .empty { text-align: center; color: #b0b8c4; padding: 24px 0; }
-        .footer { text-align: center; color: #b0b8c4; font-size: 12px; margin-top: 20px; }
+        .result-box hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 
         /* ===== Graph 流程图 ===== */
-        .graph-title { font-size: 13px; color: #7f8c8d; margin-top: 14px; }
+        .graph-section {
+            margin-top: 18px;
+            padding: 18px;
+            background: #f4f9ff;
+            border-radius: 14px;
+            border: 1px solid #e3eef8;
+            display: none;
+        }
+        .graph-section.active { display: block; }
+        .graph-title {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
         .graph-flow {
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            flex-wrap: wrap; margin-top: 10px; padding: 14px 10px;
-            background: #f4f9ff; border-radius: 12px; border: 1px solid #e3eef8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
         }
         .node {
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-            padding: 8px 14px; min-width: 84px; border-radius: 10px;
-            border: 2px solid #dce8f3; background: #fff; transition: all .3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 14px;
+            min-width: 92px;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            background: #fff;
+            transition: all .3s;
         }
         .node .node-title { font-size: 13px; font-weight: 600; color: #34495e; }
         .node .node-status { font-size: 12px; color: #b0b8c4; }
-        .node.pending { opacity: .5; }
-        .node.running { border-color: #1a6fb5; background: #eaf4ff; box-shadow: 0 0 0 4px rgba(26,111,181,.12); }
-        .node.running .node-status { color: #1a6fb5; animation: graph-blink 1s infinite; }
-        .node.done { border-color: #27ae60; background: #eafaf1; }
-        .node.done .node-status { color: #27ae60; }
+        .node.pending { opacity: .55; }
+        .node.running { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 0 4px rgba(26,111,181,.12); }
+        .node.running .node-status { color: var(--primary); animation: graph-blink 1s infinite; }
+        .node.done { border-color: var(--success); background: #eafaf1; }
+        .node.done .node-status { color: var(--success); }
         .arrow { color: #b0c4d8; font-weight: bold; font-size: 16px; }
         @keyframes graph-blink { 50% { opacity: .35; } }
         @media (max-width: 640px) { .arrow { display: none; } }
+
+        /* ===== 表格 ===== */
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eef2f6; text-align: left; }
+        th { background: #f5f9fd; color: #34495e; font-weight: 600; }
+        tr:hover td { background: #f8fbfe; }
+        .tag {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: var(--primary-light);
+            color: var(--primary);
+            margin: 2px 4px 2px 0;
+        }
+        .empty {
+            text-align: center;
+            color: #b0b8c4;
+            padding: 36px 0;
+            background: #f8fbfe;
+            border-radius: 12px;
+            margin-top: 12px;
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 640px) {
+            .page-header h1 { font-size: 26px; }
+            .nav-inner { justify-content: center; }
+            .card { padding: 20px; }
+        }
+
+        .footer {
+            text-align: center;
+            color: #b0b8c4;
+            font-size: 12px;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <header>
-        <h1>🧳 旅游规划助手</h1>
-        <p>输入一句话需求,AI 自动生成专属旅行计划 · 基于 Spring AI Alibaba Graph</p>
-    </header>
 
-    <!-- ============ 生成行程 ============ -->
-    <div class="card">
-        <h2>✍️ 一句话生成旅行计划</h2>
-        <textarea id="planReq" placeholder="例如:北京3天2晚亲子游,预算5000元,喜欢历史文化"></textarea>
+<nav class="top-nav">
+    <div class="nav-inner">
+        <div class="brand"><span>🧳</span> 旅游规划助手</div>
+        <div class="nav-tabs">
+            <div class="nav-tab active" data-tab="plan" onclick="switchTab('plan')">✍️ 生成计划</div>
+            <div class="nav-tab" data-tab="attractions" onclick="switchTab('attractions')">🔍 景点检索</div>
+            <div class="nav-tab" data-tab="history" onclick="switchTab('history')">📋 历史行程</div>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1>旅游规划助手</h1>
+        <p>输入一句话需求，AI 自动生成专属旅行计划 · 基于 Spring AI Alibaba Graph</p>
+    </div>
+
+    <!-- ============ 生成计划 ============ -->
+    <section id="tab-plan" class="card tab-panel active">
+        <div class="card-header">
+            <div class="icon">✍️</div>
+            <h2>一句话生成旅行计划</h2>
+        </div>
+        <p class="form-hint">输入城市、天数、预算、风格等需求，例如：「北京3天2晚亲子游，预算5000元，喜欢历史文化」。</p>
+        <textarea id="planReq" placeholder="例如：杭州3天2晚亲子游，预算5000元，喜欢历史文化，带5岁孩子"></textarea>
         <div class="row">
             <button onclick="generatePlan()">生成计划</button>
             <button class="secondary" onclick="useExample()">填入示例</button>
         </div>
-        <div class="loading" id="planLoading">⏳ AI 正在规划行程,请稍候(约 10~30 秒)...</div>
-        <div class="graph-title" id="graphTitle" style="display:none;">📊 Graph 工作流执行进度:</div>
-        <div class="graph-flow" id="graphFlow" style="display:none;"></div>
+        <div class="loading" id="planLoading">⏳ AI 正在规划行程，请稍候（约 10~30 秒）…</div>
+        <div class="graph-section" id="graphSection">
+            <div class="graph-title">📊 Graph 工作流执行进度</div>
+            <div class="graph-flow" id="graphFlow"></div>
+        </div>
         <div class="result-box" id="planResult" style="display:none;"></div>
-    </div>
+    </section>
 
     <!-- ============ 景点检索 ============ -->
-    <div class="card">
-        <h2>🔍 景点检索</h2>
+    <section id="tab-attractions" class="card tab-panel">
+        <div class="card-header">
+            <div class="icon">🔍</div>
+            <h2>景点检索</h2>
+        </div>
+        <p class="form-hint">输入城市和关键词，快速查找符合条件的景点信息、评分、标签与简介。</p>
         <div class="row">
-            <input type="text" id="searchCity" placeholder="城市,如:北京">
-            <input type="text" id="searchKeyword" placeholder="关键词,如:亲子、夜景、免费">
+            <input type="text" id="searchCity" placeholder="城市，如：北京">
+            <input type="text" id="searchKeyword" placeholder="关键词，如：亲子、夜景、免费">
             <button onclick="searchAttractions()">搜索</button>
         </div>
         <div id="attractionList"></div>
-    </div>
+    </section>
 
     <!-- ============ 历史行程 ============ -->
-    <div class="card">
-        <h2>📋 历史行程</h2>
+    <section id="tab-history" class="card tab-panel">
+        <div class="card-header">
+            <div class="icon">📋</div>
+            <h2>历史行程</h2>
+        </div>
+        <p class="form-hint">查看之前生成的行程记录，可按城市筛选，点击「刷新」同步最新数据。</p>
         <div class="row">
-            <input type="text" id="historyCity" placeholder="按城市筛选(可留空)">
+            <input type="text" id="historyCity" placeholder="按城市筛选（可留空）">
             <button onclick="loadHistory()">刷新</button>
         </div>
         <div id="historyList"></div>
-    </div>
+    </section>
 
     <div class="footer">travel-planner · Spring Boot 3.5 + Spring AI Alibaba Graph + MyBatis-Plus + Redisson</div>
 </div>
@@ -137,28 +386,35 @@
         return resp.json();
     }
 
-    // 页面加载:自动加载城市与历史
+    // 页面加载：默认在生成计划页，预加载城市提示
     window.onload = function () {
-        loadHistory();
         loadCities();
     };
 
-    // 加载城市列表(填充输入提示)
+    // 切换标签页
+    function switchTab(tabName) {
+        document.querySelectorAll('.nav-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tabName));
+        document.querySelectorAll('.tab-panel').forEach(el => el.classList.toggle('active', el.id === 'tab-' + tabName));
+        if (tabName === 'history') loadHistory();
+        if (tabName === 'attractions') document.getElementById('searchCity').focus();
+    }
+
+    // 加载城市列表（填充输入提示）
     async function loadCities() {
         try {
             const data = await request('/api/cities');
             if (data.code === 200 && data.data.length) {
-                document.getElementById('searchCity').placeholder = '城市,如:' + data.data.slice(0, 4).join('、');
+                document.getElementById('searchCity').placeholder = '城市，如：' + data.data.slice(0, 4).join('、');
             }
         } catch (e) { /* 忽略 */ }
     }
 
     // 填入示例需求
     function useExample() {
-        document.getElementById('planReq').value = '北京3天2晚亲子游,预算5000元,喜欢历史文化,带5岁孩子';
+        document.getElementById('planReq').value = '北京3天2晚亲子游，预算5000元，喜欢历史文化，带5岁孩子';
     }
 
-    // Graph 节点定义(与后端 TravelGraphNodes 节点一致)
+    // Graph 节点定义（与后端 TravelGraphNodes 节点一致）
     const GRAPH_NODES = [
         { node: 'requirement', label: '需求解析' },
         { node: 'analysis', label: '偏好分析' },
@@ -167,12 +423,11 @@
         { node: 'format', label: '格式化' }
     ];
 
-    // 渲染流程图:statusMap 为 node -> running/done/pending;allDone=true 时全部置为完成
+    // 渲染流程图：statusMap 为 node -> running/done/pending；allDone=true 时全部置为完成
     function renderGraph(statusMap, allDone) {
         const flow = document.getElementById('graphFlow');
-        const title = document.getElementById('graphTitle');
-        flow.style.display = 'flex';
-        title.style.display = 'block';
+        const section = document.getElementById('graphSection');
+        section.classList.add('active');
         flow.innerHTML = GRAPH_NODES.map(function (n, i) {
             const st = allDone ? 'done' : (statusMap[n.node] || 'pending');
             const text = st === 'done' ? '✓ 完成' : (st === 'running' ? '执行中…' : '等待中');
@@ -194,7 +449,7 @@
                         : (s.status === 'DONE' ? 'done' : 'pending');
             });
             renderGraph(map, false);
-        } catch (e) { /* 轮询失败忽略,等待下一次 */ }
+        } catch (e) { /* 轮询失败忽略，等待下一次 */ }
     }
 
     // 生成旅行计划
@@ -205,9 +460,9 @@
         const loading = document.getElementById('planLoading');
         box.style.display = 'none';
         loading.style.display = 'block';
-        // 生成 requestId,用于轮询 Graph 执行进度
+        // 生成 requestId，用于轮询 Graph 执行进度
         const requestId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-        renderGraph({}, false); // 初始:全部等待
+        renderGraph({}, false); // 初始：全部等待
         const poll = setInterval(function () { pollGraph(requestId); }, 800);
         try {
             const data = await request('/api/itinerary/generate', {
@@ -216,21 +471,20 @@
                 body: JSON.stringify({ requirements, requestId })
             });
             clearInterval(poll);
-            renderGraph({}, true); // 请求结束,节点全部完成
+            renderGraph({}, true); // 请求结束，节点全部完成
             loading.style.display = 'none';
             box.style.display = 'block';
             if (data.code === 200) {
                 box.innerHTML = marked.parse(data.data);
-                loadHistory(); // 刷新历史
             } else {
-                box.innerHTML = '<span style="color:#e74c3c">生成失败:' + data.message + '</span>';
+                box.innerHTML = '<span style="color:#e74c3c">生成失败：' + data.message + '</span>';
             }
         } catch (e) {
             clearInterval(poll);
             renderGraph({}, true);
             loading.style.display = 'none';
             box.style.display = 'block';
-            box.innerHTML = '<span style="color:#e74c3c">请求异常,请确认服务已启动</span>';
+            box.innerHTML = '<span style="color:#e74c3c">请求异常，请确认服务已启动</span>';
         }
     }
 
@@ -242,10 +496,10 @@
         if (city) params.append('city', city);
         if (keyword) params.append('keyword', keyword);
         const box = document.getElementById('attractionList');
-        box.innerHTML = '<div class="loading" style="display:block">⏳ 查询中...</div>';
+        box.innerHTML = '<div class="loading" style="display:block">⏳ 查询中…</div>';
         try {
             const data = await request('/api/attractions?' + params.toString());
-            if (data.code !== 200) { box.innerHTML = '<div class="empty">查询失败:' + data.message + '</div>'; return; }
+            if (data.code !== 200) { box.innerHTML = '<div class="empty">查询失败：' + data.message + '</div>'; return; }
             const list = data.data || [];
             if (!list.length) { box.innerHTML = '<div class="empty">未找到相关景点</div>'; return; }
             let html = '<table><thead><tr><th>景点</th><th>城市</th><th>类别</th><th>评分</th><th>人均</th><th>标签</th><th>简介</th></tr></thead><tbody>';
@@ -286,5 +540,6 @@
         }
     }
 </script>
+
 </body>
 </html>

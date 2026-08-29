@@ -5,7 +5,7 @@
 
 ## 功能特性
 
-- **MCP Server（SSE）**：对外暴露 `searchAttractions` / `generateTravelPlan` / `listCities` 三个工具
+- **MCP Server（Streamable HTTP）**：对外暴露 `searchAttractions` / `generateTravelPlan` / `listCities` 三个工具
 - **Graph 工作流编排**：需求解析 → 偏好分析 → 景点检索 → 行程生成 → 格式化输出（spring-ai-alibaba-graph-core）
 - **大模型驱动**：DashScope（通义千问）生成行程；无 API Key 时自动降级本地模板，保证可演示
 - **数据持久化**：MyBatis-Plus + MySQL，景点/行程落库
@@ -74,6 +74,70 @@ START → 需求解析(requirement) → 偏好分析(analysis) → 景点检索(
 - `plan`：大模型生成 Markdown 行程；失败降级本地模板
 - `format`：组装最终输出
 
+## Spring AI Alibaba Graph 知识点
+
+> 本项目工作流引擎基于官方 `spring-ai-alibaba-graph-core`（参考 [Spring AI Alibaba Graph 文档](https://java2ai.com/docs/frameworks/graph-core/core/core-library/)）。
+> 它将 LangGraph 的「图编排」思想移植到 Java：把一次 AI 任务拆成一个个**节点**，用**边**串联成一张**有向图**，
+> 所有节点读写同一份**共享状态**，图编译后即可执行，适合「多步推理 / 调工具 / 失败回退」的 Agent 工作流。
+
+### 核心概念速览
+
+| 概念 | 说明 |
+|---|---|
+| `State` / `OverAllState` | 贯穿全图的共享状态容器，节点通过它读写数据 |
+| `Node`（节点） | 一段业务逻辑（函数式接口），入参 `OverAllState`，返回要写入状态的 `Map` |
+| `Edge`（边） | 决定下一步执行哪个节点的路由 |
+| `StateGraph` | 图构建器：负责注册节点、连边 |
+| `CompiledGraph` | `graph.compile()` 后得到的可执行图 |
+| `START` / `END` | 图的入口与终止哨兵节点 |
+
+### 开发范式：搭图三步
+
+1. **写节点逻辑**：每个节点是一个方法，签名 `Map<String, Object> x(OverAllState state)`，
+   从 state 读输入、处理后返回需要更新的字段（对应本项目的 `graph/TravelGraphNodes.java`，
+   节点是 `@Component`，内部可直接注入 `ChatModel`、Service 等 Spring Bean）；
+2. **搭图**：在 `StateGraph` 上用 `addNode(名称, node_async(方法引用))` 注册节点、
+   `addEdge(START → … → END)` 串联流程（对应 `graph/TravelGraphConfig.java`）：
+
+   ```java
+   StateGraph graph = new StateGraph()
+       .addNode("requirement", node_async(nodes::requirement))
+       .addNode("plan", node_async(nodes::plan))
+       .addEdge(START, "requirement")
+       .addEdge("requirement", "plan")
+       .addEdge("plan", END);
+   ```
+
+3. **编译执行**：`CompiledGraph compiled = graph.compile();` 之后即可执行：
+   - `compiled.invoke(Map.of(...))` 同步执行，返回 `Optional<OverAllState>`（本项目 Spring MVC 同步模型用它）；
+   - `compiled.stream(...)` 流式执行，逐个节点产出结果推给调用方。
+
+### 状态是如何流转的
+
+- 初始状态由调用方传入（本项目放入 `userInput`、`requestId` 两个 key）；
+- 节点执行完返回 `Map`，引擎会将该 Map 中的 key **覆盖/合并**回总状态，未提及的 key 原样保留——
+  因此节点只需返回自己关心的字段，无需携带完整状态；
+- 若字段需要「追加」语义（如多轮对话消息列表），可用 `AppendStrategy` 等 `KeyStrategy`
+  定制合并策略（本项目各字段互不依赖，使用默认覆盖即可）。
+
+### 进阶能力（本项目暂未用到，值得了解）
+
+| 能力 | 说明 | API |
+|---|---|---|
+| 条件分支 | 节点执行后按路由函数结果跳转不同后续节点 | `addConditionalEdges(node, edge_async(...), Map.of(路由结果→节点))` |
+| 并行执行 | 一个节点连多条出边，下游节点并行执行 | 从同一节点 `addEdge` 到多个节点 |
+| 流式输出 | 逐节点产出结果，边执行边推给调用方 | `graph.stream(input, config)` |
+| Checkpointer | 内置检查点，支持断点续跑、人机协作、跨轮记忆 | `RunnableConfig.threadId(...)` |
+
+### 本项目的工程化实践
+
+- **节点与 Spring 融合**：节点类 `TravelGraphNodes` 是普通 `@Component`，构造注入 `ChatModel`（DashScope）与业务 Service，天然支持依赖注入与测试；
+- **图注册为单例 Bean**：`TravelGraphConfig` 以 `@Bean` 暴露 `CompiledGraph`，业务层直接注入复用；
+- **状态 key 集中管理**：字段名收敛在 `GraphStateKeys` 常量类并内置安全取值方法，杜绝魔法字符串；
+- **可观测**：`requestId` 随状态贯穿全图，节点在 `finally` 中向 `GraphProgress` 打点，前端可实时看到「需求解析 → … → 格式化」的进度；
+- **节点内兜底**：大模型调用包在 try-catch 中，失败自动降级本地模板/默认值，避免单点故障中断整条链路；
+- **编排与副作用解耦**：图只负责编排与产出结果，Redis 缓存、分布式锁、MySQL 落库等副作用放在图外的 `AiTravelService`，保持节点逻辑纯粹。
+
 ## 快速开始
 
 ### 1. 环境准备
@@ -134,7 +198,7 @@ mvn spring-boot:run
 ### 5. 访问
 
 - 前端页面：<http://localhost:8083/>
-- MCP Server SSE 端点：<http://localhost:8083/sse>
+- MCP Server 端点（Streamable HTTP）：<http://localhost:8083/mcp>
 - 健康检查：<http://localhost:8083/api/health>
 
 ## REST 接口
@@ -155,11 +219,22 @@ mvn spring-boot:run
 | `generateTravelPlan(requirements)` | 一句话生成旅行计划 |
 | `listCities()` | 列出内置城市 |
 
-另一工程（MCP Client）通过 SSE 端点连接：
+### 对接 MCP Client（lion-agent）
+
+配套的 AI Agent 工程 **[lion-agent](https://github.com/xxkfz-lioncode/lion-agent.git)**（MCP Client）通过 **Streamable HTTP** 端点连接本 Server，即可在 Agent 对话中直接调用上述旅游规划工具。
 
 ```bash
-npx @modelcontextprotocol/inspector --transport http --url http://localhost:8083/sse
+git clone https://github.com/xxkfz-lioncode/lion-agent.git
 ```
+
+MCP Client 通过 Streamable HTTP 端点连接：
+
+```bash
+npx @modelcontextprotocol/inspector --transport http --url http://localhost:8083/mcp
+```
+
+> 注意：本 Server 需先启动（`mvn spring-boot:run`），Client 侧配置的 MCP Server 地址为 `http://localhost:8083/mcp`。
+> 若在 `spring.ai.mcp.client.streamable-http.connections.<name>.url` 中配置，URL 同样指向 `http://localhost:8083/mcp`。
 
 ## 关键配置说明
 
@@ -171,7 +246,9 @@ spring:
     mcp:
       server:
         enabled: true
-        sse-endpoint: /sse                # MCP SSE 端点
+        protocol: STREAMABLE             # Streamable HTTP 协议(主流客户端默认)
+        streamable-http:
+          mcp-endpoint: /mcp             # MCP 端点,客户端按 http://host:8083/mcp 连接
 travel:
   ai-enabled: ${TRAVEL_AI_ENABLED:true}   # false 时全部走本地模板,无需 API Key
   cache-ttl-seconds: 3600                 # 行程缓存过期时间

@@ -6,6 +6,7 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理器。
@@ -42,6 +43,13 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .orElse("参数校验失败");
         return Result.fail(400, msg);
+    }
+
+    /** 请求的静态资源/路径不存在(Spring MVC 404):不打 ERROR 堆栈,避免噪音 */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public Result<Void> handleNoResourceFound(NoResourceFoundException e) {
+        log.warn("资源不存在: {}", e.getResourcePath());
+        return Result.fail(404, "接口或资源不存在: /" + e.getResourcePath());
     }
 
     /** 兜底异常:记录完整堆栈,返回通用提示 */

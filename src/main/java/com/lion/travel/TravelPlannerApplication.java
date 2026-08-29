@@ -35,7 +35,7 @@ public class TravelPlannerApplication {
     }
 
     /**
-     * 打印简洁的启动信息:应用名称、端口、Web 访问地址、MCP SSE 端点。
+     * 打印简洁的启动信息:应用名称、端口、Web 访问地址、MCP 端点。
      */
     private static void printStartupInfo(ConfigurableApplicationContext context) {
         Environment env = context.getEnvironment();
@@ -46,7 +46,7 @@ public class TravelPlannerApplication {
         log.info("======================================================");
         log.info("  {} 启动成功", appName);
         log.info("  Web 访问地址 : {}", baseUrl);
-        log.info("  MCP SSE 端点 : {}/sse", baseUrl);
+        log.info("  MCP 端点     : {}/mcp", baseUrl);
         log.info("======================================================");
     }
 }

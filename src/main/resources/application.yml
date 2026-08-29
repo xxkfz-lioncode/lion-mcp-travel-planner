@@ -49,8 +49,11 @@ spring:
         enabled: true
         name: travel-planner
         version: 1.0.0
-        # SSE 传输端点,另一个工程(MCP Client)通过该地址连接
-        sse-endpoint: /sse
+        # 协议:Streamable HTTP(主流 MCP 客户端默认),取代旧版 SSE 传输
+        protocol: STREAMABLE
+        streamable-http:
+          # MCP 端点:客户端通过 http://host:port/mcp 连接(默认即 /mcp)
+          mcp-endpoint: /mcp
 
 # ---------- MyBatis-Plus 配置 ----------
 mybatis-plus:
