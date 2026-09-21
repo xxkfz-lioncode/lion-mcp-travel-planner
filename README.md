@@ -176,6 +176,16 @@ mysql -uroot -p < sql/schema.sql
 | `DASHSCOPE_MODEL` | qwen-plus |
 | `TRAVEL_AI_ENABLED` | true（false 时走本地模板，无需 API Key 也能演示） |
 
+**`.env` 文件（本地开发/部署推荐，已被 `.gitignore` 忽略，不会打进 jar）：**
+
+| 场景 | 读取位置 |
+|---|---|
+| 打包运行 `java -jar app.jar` | **jar 同级目录**下的 `.env`（与在哪个目录执行命令无关） |
+| jar 同级无 `.env` / 开发态（IDE、`mvn spring-boot:run`） | 回退读取**当前工作目录**（项目根目录）下的 `.env` |
+
+> 注意：`.env` 不会被打包进 jar，部署时需拷贝到 jar 同级目录；
+> 若 OS 已存在同名真实环境变量，则 `.env` 中的值不会覆盖它。
+
 设置方式（任选其一）：
 
 - **IDEA**：Run/Debug Configurations → Environment variables 填入
@@ -198,6 +208,7 @@ mvn spring-boot:run
 ### 5. 访问
 
 - 前端页面：<http://localhost:8083/>
+- 在线接口文档（Swagger UI）：<http://localhost:8083/swagger-ui.html>
 - MCP Server 端点（Streamable HTTP）：<http://localhost:8083/mcp>
 - 健康检查：<http://localhost:8083/api/health>
 

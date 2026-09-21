@@ -74,6 +74,19 @@ mybatis-plus:
       # logic-delete-value: 1
       # logic-not-delete-value: 0
 
+# ---------- SpringDoc OpenAPI(Swagger)在线文档 ----------
+springdoc:
+  api-docs:
+    enabled: true
+    # OpenAPI 描述文件地址(JSON)
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    # Swagger UI 页面地址(浏览器直接访问)
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
 # ---------- 自定义业务配置 ----------
 travel:
   # AI 生成开关:为 false 时 Graph 工作流走本地模板逻辑(无需 API Key 也能演示)

@@ -70,6 +70,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <!-- OpenAPI 在线接口文档(Swagger UI)
+             注意:Spring Boot 3.5.x 需 2.8.9+ (2.8.6 及以下启动报 NoSuchMethodError) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.8.9</version>
+        </dependency>
 
         <!-- ==================== AI 能力 ==================== -->
         <!-- Spring AI Alibaba:Graph 工作流引擎(StateGraph / CompiledGraph / OverAllState) -->

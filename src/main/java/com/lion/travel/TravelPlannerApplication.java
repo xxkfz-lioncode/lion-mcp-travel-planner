@@ -42,10 +42,15 @@ public class TravelPlannerApplication {
         String appName = env.getProperty("spring.application.name", "travel-planner");
         String port = env.getProperty("server.port", "8083");
         String baseUrl = "http://localhost:" + port;
+        // 在线文档地址(springdoc 配置,默认 /swagger-ui.html 与 /v3/api-docs)
+        String swaggerUiPath = env.getProperty("springdoc.swagger-ui.path", "/swagger-ui.html");
+        String apiDocsPath = env.getProperty("springdoc.api-docs.path", "/v3/api-docs");
 
         log.info("======================================================");
         log.info("  {} 启动成功", appName);
         log.info("  Web 访问地址 : {}", baseUrl);
+        log.info("  在线接口文档 : {}{}", baseUrl, swaggerUiPath);
+        log.info("  OpenAPI JSON : {}{}", baseUrl, apiDocsPath);
         log.info("  MCP 端点     : {}/mcp", baseUrl);
         log.info("======================================================");
     }
