@@ -1,7 +1,32 @@
-# Lion MCP Travel Planner 旅游规划助手
+<div align="center">
 
-基于 **Spring Boot 3.5 + Spring AI Alibaba Graph 工作流引擎** 的旅游规划助手 **MCP Server**，
-对外暴露 MCP 工具供其他工程（AI Agent / MCP Client）调用，同时提供 REST 接口与简单 HTML 前端页面。
+<h1>🧭 Lion MCP Travel Planner</h1>
+
+### 旅游规划助手 · MCP Server
+
+一句话生成旅行行程，并以 MCP 工具形式供 AI Agent / MCP Client 直接调用
+
+基于 `Spring Boot 3.5` + `Spring AI Alibaba Graph` + `DashScope(通义千问)` + `MyBatis-Plus` + `Redisson` 构建，
+覆盖「需求解析 → 偏好分析 → 景点检索 → 行程生成 → 格式化输出」完整闭环。
+
+<p>
+  <img alt="Java" src="https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white">
+  <img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-3.5.4-6DB33F?logo=springboot&logoColor=white">
+  <img alt="Spring AI" src="https://img.shields.io/badge/Spring%20AI-1.1.2-6DB33F?logo=spring&logoColor=white">
+  <img alt="Spring AI Alibaba" src="https://img.shields.io/badge/Spring%20AI%20Alibaba%20Graph-1.1.2.0-blue">
+  <img alt="LLM" src="https://img.shields.io/badge/LLM-DashScope%20qwen--plus-FF6A00">
+  <br>
+  <img alt="MySQL" src="https://img.shields.io/badge/MySQL-8.x-4479A1?logo=mysql&logoColor=white">
+  <img alt="Redis" src="https://img.shields.io/badge/Redis-Redisson%203.37-DC382D?logo=redis&logoColor=white">
+  <img alt="MCP" src="https://img.shields.io/badge/MCP-Streamable%20HTTP-1f6feb">
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white">
+</p>
+
+[项目简介](#功能特性) · [界面预览](#界面预览) · [技术栈](#技术栈) · [项目结构](#项目结构) · [Graph 工作流](#graph-工作流) · [Graph 知识点](#spring-ai-alibaba-graph-知识点) · [快速开始](#快速开始) · [REST 接口](#rest-接口) · [MCP 工具](#mcp-工具供另一工程调用) · [Docker 部署](#docker-部署)
+
+</div>
+
+---
 
 ## 功能特性
 
@@ -14,17 +39,30 @@
 
 ## 界面预览
 
-### 一句话生成旅行计划
+### 首页 · 一句话生成旅行计划
 
-输入需求后，Graph 工作流会逐步执行并展示进度，最终生成完整的 Markdown 行程。
+输入自然语言需求（如「杭州3天2晚亲子游，预算5000元，喜欢历史文化」），
+后台 Graph 工作流逐步执行，页面同步展示「需求解析 → 偏好分析 → 景点检索 → 行程生成 → 格式化」的实时进度。
 
-![一句话生成旅行计划](README.assets/image-20260829212246346.png)
+![首页与 Graph 工作流执行进度](README.assets/image-20261011204030566.png)
 
-### 景点检索与历史行程
+### 行程生成结果
 
-支持按城市和关键词检索景点，并查看已生成的历史行程记录。
+生成完成后展示完整的 Markdown 行程（按天组织，含上午/下午/晚上安排、餐饮与住宿建议、行程小贴士）。
 
-![景点检索与历史行程](README.assets/image-20260829212319526.png)
+![行程生成结果](README.assets/image-20261011204105232.png)
+
+### 景点检索
+
+按城市、关键词检索景点，返回评分、人均消费、开放时间、标签等信息。
+
+![景点检索](README.assets/image-20261011204121604.png)
+
+### 历史行程
+
+查看已生成的行程记录，支持按城市筛选与查看 Markdown 原文。
+
+![历史行程](README.assets/image-20261011204145308.png)
 
 ## 技术栈
 
@@ -297,7 +335,13 @@ docker compose logs -f app      # 看到 "启动成功" 即就绪
 | MySQL | `localhost:3307`（`MYSQL_EXPOSE_PORT` 可改） |
 | Redis | `localhost:6379`（`REDIS_EXPOSE_PORT` 可改） |
 
-### 5. 常用命令
+### 5. 容器运行状态
+
+`app` / `mysql` / `redis` 三个容器均在运行且健康：
+
+![Docker Desktop 容器运行状态](README.assets/image-20261011203829439.png)
+
+### 6. 常用命令
 
 ```bash
 docker compose ps                  # 查看状态（app 需在 mysql/redis healthy 后才启动）
@@ -334,5 +378,3 @@ travel:
   ai-enabled: ${TRAVEL_AI_ENABLED:true}   # false 时全部走本地模板,无需 API Key
   cache-ttl-seconds: 3600                 # 行程缓存过期时间
 ```
-
-
