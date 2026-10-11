@@ -19,7 +19,9 @@ spring:
   # ---------- 数据源:MySQL(凭据必须通过环境变量注入) ----------
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:travel_planner}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    # characterEncoding=UTF-8 交由 Connector/J 8 映射为 utf8mb4(可存 emoji,兼容 4 字节字符);
+    # connectionCollation 显式指定排序规则,避免被服务端/客户端协商成 latin1 导致中文乱码
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:travel_planner}?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
 

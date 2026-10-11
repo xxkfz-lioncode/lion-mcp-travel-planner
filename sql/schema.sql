@@ -4,6 +4,12 @@
 -- 执行方式:mysql -uroot -p < schema.sql
 -- =====================================================================
 
+-- 强制本会话按 utf8mb4 解释脚本内的字节。
+-- 必要性:Docker 初始化(/docker-entrypoint-initdb.d)或 mysql 客户端在无
+-- 语言环境(未设 LANG)时可能把 character_set_client 回退为 latin1,
+-- 导致脚本里的中文被按 latin1 拆解后存成双重编码(北京 -> åŒ—äº¬)。
+SET NAMES utf8mb4;
+
 -- 创建数据库(如不存在)
 CREATE DATABASE IF NOT EXISTS travel_planner
     DEFAULT CHARACTER SET utf8mb4
