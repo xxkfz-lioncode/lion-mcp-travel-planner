@@ -1,0 +1,151 @@
+# =====================================================================
+# lion-mcp-travel-planner 一键部署(App + MySQL + Redis)
+#
+# 变量来源:自动读取项目根目录 .env(可复制 .env.example 修改)。
+# 必配项(缺失会直接报错,避免静默启动失败):
+#   DASHSCOPE_API_KEY / MYSQL_ROOT_PASSWORD / MYSQL_USER / MYSQL_PASSWORD / REDIS_PASSWORD
+#
+# 前置:先出 jar —— mvn clean package -DskipTests(或 bin\package-backend.bat)
+# 常用命令:
+#   docker compose up -d --build     构建并后台启动
+#   docker compose logs -f app       查看应用日志
+#   docker compose down              停止并删除容器(数据卷保留)
+#   docker compose down -v           连数据一起清理(初始化脚本会重新执行)
+# =====================================================================
+
+name: lion-travel-planner
+
+services:
+  # ------------------------------ MySQL ------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: travel-mysql
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中补充 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DB:-travel_planner}
+      MYSQL_USER: ${MYSQL_USER:?请在 .env 中补充 MYSQL_USER(不要使用 root)}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 中补充 MYSQL_PASSWORD}
+      TZ: Asia/Shanghai
+    # utf8mb4 与 schema.sql 一致;native password 便于外部客户端连接
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --default-authentication-plugin=mysql_native_password
+      - --default-time-zone=+08:00
+      - --innodb-flush-log-at-trx-commit=2
+    ports:
+      # 宿主机 3306 常被本机 MySQL 占用,默认映射到 3307,可用 MYSQL_EXPOSE_PORT 覆盖
+      - "${MYSQL_EXPOSE_PORT:-3307}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 首次初始化(数据卷为空时)自动建库建表 + 导入种子景点数据
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    networks:
+      - travel-net
+
+  # ------------------------------ Redis ------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: travel-redis
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    # REDIS_PASSWORD 必须非空:容器侧与 app 侧使用同一份密码
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?请在 .env 中补充 REDIS_PASSWORD(不能为空)}
+      TZ: Asia/Shanghai
+    ports:
+      - "${REDIS_EXPOSE_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    networks:
+      - travel-net
+
+  # ------------------------------ 应用 ------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: lion-mcp-travel-planner-1.0.0.jar
+    image: lion-mcp-travel-planner:1.0.0
+    container_name: travel-app
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    # 等 DB / Redis 真正就绪(healthy)后再启动,避免启动期连库失败
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      SERVER_PORT: ${SERVER_PORT:-8083}
+      # 容器网络内使用服务名互通
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: ${MYSQL_DB:-travel_planner}
+      MYSQL_USER: ${MYSQL_USER:?请在 .env 中补充 MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 中补充 MYSQL_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?请在 .env 中补充 REDIS_PASSWORD(不能为空)}
+      # yml 中 ${DASHSCOPE_API_KEY} 无默认值,必须存在;
+      # 无 Key 想纯本地模板演示:填任意占位值 + TRAVEL_AI_ENABLED=false
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:?请在 .env 中补充 DASHSCOPE_API_KEY}
+      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen-plus}
+      TRAVEL_AI_ENABLED: ${TRAVEL_AI_ENABLED:-true}
+      JAVA_OPTS: "${JAVA_OPTS:--Xms512m -Xmx1024m -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8}"
+    ports:
+      - "${SERVER_PORT:-8083}:${SERVER_PORT:-8083}"
+    init: true
+    mem_limit: 1536m
+    # 可选:不走 environment 时,把 .env 挂给 EnvFileLoader(jar 同级目录),真实环境变量优先级更高
+    # volumes:
+    #   - ./.env:/app/.env:ro
+    networks:
+      - travel-net
+
+# ------------------------------ 数据卷 / 网络 ------------------------------
+volumes:
+  mysql-data:
+  redis-data:
+
+networks:
+  travel-net:
+    driver: bridge

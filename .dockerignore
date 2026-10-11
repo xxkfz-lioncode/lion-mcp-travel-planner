@@ -1,0 +1,36 @@
+# ===================== 构建上下文裁剪 =====================
+# 避免把本地构建产物、密钥、IDE 配置打进镜像 / 传给 Docker daemon
+.git/
+.gitignore
+.idea/
+.vscode/
+*.iml
+
+# Maven 中间产物(注意:不能忽略整个 target/,否则 COPY target/*.jar 取不到 jar)
+target/classes/
+target/test-classes/
+target/generated-sources/
+target/generated-test-sources/
+target/maven-status/
+target/maven-archiver/
+target/surefire-reports/
+target/*.jar.original
+
+# 本地敏感配置(严禁进镜像)
+.env
+.env.*
+!.env.example
+
+# 日志 / 临时文件
+logs/
+*.log
+*.tmp
+*.bak
+
+# 与本次构建无关的文件
+README.md
+README.assets/
+sql/
+bin/
+Dockerfile
+docker-compose.yml

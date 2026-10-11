@@ -247,6 +247,76 @@ npx @modelcontextprotocol/inspector --transport http --url http://localhost:8083
 > 注意：本 Server 需先启动（`mvn spring-boot:run`），Client 侧配置的 MCP Server 地址为 `http://localhost:8083/mcp`。
 > 若在 `spring.ai.mcp.client.streamable-http.connections.<name>.url` 中配置，URL 同样指向 `http://localhost:8083/mcp`。
 
+## Docker 部署
+
+一条命令拉起 **应用 + MySQL + Redis**，无需本地安装 JDK / MySQL / Redis。
+
+### 1. 准备环境变量
+
+Docker Compose 会自动读取项目根目录的 `.env`（已被 `.gitignore` 忽略）：
+
+```bash
+cp .env.example .env   # Windows: copy .env.example .env
+```
+
+至少填写这些（`:?` 强校验，缺失会直接报错而不是静默启动失败）：
+
+| 变量 | 说明 |
+|---|---|
+| `DASHSCOPE_API_KEY` | 通义千问 Key；无 Key 想演示可填 `none` 并把 `TRAVEL_AI_ENABLED=false` |
+| `MYSQL_ROOT_PASSWORD` | MySQL root 密码（容器初始化用） |
+| `MYSQL_USER` / `MYSQL_PASSWORD` | 应用使用的账号（Compose 会自动创建并授权） |
+| `REDIS_PASSWORD` | Redis 密码，**不能为空**（否则应用侧空密码连不上） |
+
+### 2. 打包（Dockerfile 不负责编译，必须先出 jar）
+
+```bash
+mvn clean package -DskipTests   # Windows 也可双击执行 bin\package-backend.bat
+```
+
+产物：`target/lion-mcp-travel-planner-1.0.0.jar`。改了 jar 名时用 `docker build --build-arg JAR_FILE=xxx.jar` 覆盖。
+
+### 3. 启动
+
+```bash
+docker compose up -d --build    # 镜像构建秒级完成（只拷贝 jar）
+docker compose logs -f app      # 看到 "启动成功" 即就绪
+```
+
+首次启动时 `sql/schema.sql` 会被挂载到 MySQL 的 `/docker-entrypoint-initdb.d/`，自动建库建表并导入种子景点数据。
+> 该脚本**仅在数据卷为空时**执行一次；换数据后需 `docker compose down -v` 才会重新初始化。
+
+### 4. 访问
+
+| 服务 | 地址 |
+|---|---|
+| 前端页面 | <http://localhost:8083/> |
+| Swagger UI | <http://localhost:8083/swagger-ui.html> |
+| MCP 端点 | <http://localhost:8083/mcp> |
+| 健康检查 | <http://localhost:8083/api/health> |
+| MySQL | `localhost:3307`（`MYSQL_EXPOSE_PORT` 可改） |
+| Redis | `localhost:6379`（`REDIS_EXPOSE_PORT` 可改） |
+
+### 5. 常用命令
+
+```bash
+docker compose ps                  # 查看状态（app 需在 mysql/redis healthy 后才启动）
+docker compose restart app         # 重启应用
+docker compose down                # 停止并删除容器，数据卷保留
+docker compose down -v             # 连数据一起清理
+docker compose build --no-cache app  # 强制重新构建镜像
+```
+
+### 实现要点
+
+- **单阶段构建**：镜像不负责编译，直接 `COPY target/<jar>` 到 `eclipse-temurin:21-jre-jammy`，构建秒级完成；jar 名可用 `--build-arg JAR_FILE=xxx.jar` 覆盖（需与 `pom.xml` 的 artifactId/version 一致）。
+- **构建前置**：`docker compose up -d --build` 前必须先出 jar —— `mvn clean package -DskipTests`（Windows 可用 `bin\package-backend.bat`），否则 COPY 会报 `target/xxx.jar: no such file`。
+- **上下文裁剪**：`.dockerignore` 只排除 `target/classes`、`*.jar.original` 等中间产物，**保留 `target/*.jar`**。
+- **非 root 运行**：容器以 `appuser`（uid 10001）启动，`/app` 归属该用户。
+- **健康探针**：内置 `HEALTHCHECK` 调用 `/api/health`；`app` 通过 `depends_on: condition: service_healthy` 等 MySQL / Redis 真正就绪后才启动，避免启动期连库失败。
+- **配置注入**：密钥只经环境变量传入，镜像内不含敏感信息；也可把 `.env` 挂载到 `/app/.env`（`EnvFileLoader` 会读 jar 同级目录），真实环境变量优先级更高。
+- **时区/字符集**：容器统一 `Asia/Shanghai` + `C.UTF-8`，MySQL 使用 `utf8mb4`，与 `serverTimezone=Asia/Shanghai` 对齐。
+
 ## 关键配置说明
 
 ```yaml
