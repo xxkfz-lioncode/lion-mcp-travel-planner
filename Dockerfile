@@ -10,7 +10,7 @@
 # 运行: docker run -d -p 8083:8083 --env-file .env lion-mcp-travel-planner:1.0.0
 # =====================================================================
 
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:21-jre
 
 # 时区 / 字符集:与 MySQL serverTimezone=Asia/Shanghai、utf8mb4 对齐
 # JVM 堆为保守默认值,生产请在 compose / docker run 中按机器内存覆盖 JAVA_OPTS

@@ -7,7 +7,7 @@
 #
 # 前置:先出 jar —— mvn clean package -DskipTests(或 bin\package-backend.bat)
 # 常用命令:
-#   docker compose up -d --build     构建并后台启动
+#   docker compose up -d --build     构建并后台启动(基础镜像用本地已有的,无需联网拉取)
 #   docker compose logs -f app       查看应用日志
 #   docker compose down              停止并删除容器(数据卷保留)
 #   docker compose down -v           连数据一起清理(初始化脚本会重新执行)
@@ -94,6 +94,7 @@ services:
 
   # ------------------------------ 应用 ------------------------------
   app:
+    # 基础镜像 eclipse-temurin:21-jre 本地已有,Dockerfile 构建时不会再联网拉取
     build:
       context: .
       dockerfile: Dockerfile

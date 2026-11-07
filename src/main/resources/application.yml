@@ -32,7 +32,7 @@ spring:
       port: ${REDIS_PORT:6379}
       database: 6
       # 密码通过环境变量注入(本地无密码时留空,如 REDIS_PASSWORD=)
-      password: ${REDIS_PASSWORD}
+#      password: ${REDIS_PASSWORD}
 
   # ---------- AI 能力:DashScope(通义千问) ----------
   ai:
